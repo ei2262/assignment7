@@ -1,0 +1,33 @@
+---
+title: "Assignment 7"
+output: word_document
+---
+
+```{r setup}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(randomForest)
+library(caret)
+library(gbm)
+library(pROC)
+library(rpart.plot)
+library(rpart)
+```
+
+# Part 1
+
+
+```{r}
+
+```
+
+### Part 2: Partition data into training and testing sets
+
+```{r}
+set.seed(123)
+training.data<-chr$firearm.class%>% createDataPartition(p=0.7, list=F)
+train.data<-chr[training.data, ]
+test.data<-chr[-training.data, ]
+
+```
