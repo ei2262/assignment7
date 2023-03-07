@@ -19,15 +19,96 @@ library(rpart)
 
 
 ```{r}
+set.seed(123)
+hw7_data = read_csv("./mi.data.csv") %>% 
+  janitor::clean_names()
 
+#stripped id variable
+hw7_data<-hw7_data[,2:16]
+
+#changing variable types to appropriate ones
+hw7_data$sex<-as.factor(hw7_data$sex)
+hw7_data$pulm_adema<-as.factor(hw7_data$pulm_adema)
+hw7_data$fc<-as.factor(hw7_data$fc)
+hw7_data$arr<-as.factor(hw7_data$arr)
+hw7_data$diab<-as.factor(hw7_data$diab)
+hw7_data$obesity<-as.factor(hw7_data$obesity)
+hw7_data$asthma<-as.factor(hw7_data$asthma)
+hw7_data$readmission<-as.factor(hw7_data$readmission)
+
+#re-leveling outcome variable: readmission (readmitted to hospital within 30 days) so "0=No" is reference group
+hw7_data$readmission<-relevel(hw7_data$readmission, ref="0")
+
+#omitting any missing data
+hw7_data<-na.omit(hw7_data)
 ```
 
-### Part 2: Partition data into training and testing sets
+# Part 2 : Partition data into training and testing sets to 70/30 split
 
 ```{r}
 set.seed(123)
-training.data<-chr$firearm.class%>% createDataPartition(p=0.7, list=F)
-train.data<-chr[training.data, ]
-test.data<-chr[-training.data, ]
 
+training.data<-hw7_data$readmission %>% 
+  createDataPartition(p=0.7, list=F)
+
+#Training Data
+train.data<-hw7_data[training.data, ]
+
+#Testing Data
+test.data<-hw7_data[-training.data, ]
 ```
+
+# Comparing Two Different Algorithms: Elastic Net vs. Random Forest
+
+Elastic Net Model
+Model that chooses alpha and lambda via cross-validation using all of the features 
+```{r, warning=FALSE}
+set.seed(123)
+
+train.control<-trainControl(method="cv", number=10, sampling="down")
+
+elastic.model<- train(
+  readmission ~., data = train.data, method = "glmnet",
+  trControl = train.control, preProc=c("center", "scale"),
+ tuneLength=10
+  )
+
+elastic.model$bestTune
+
+confusionMatrix(elastic.model)
+varImp(elastic.model)
+plot(varImp(elastic.model))
+```
+
+Random Forest Model
+Setting hyperparameters mtry (number of features eligible for each split)
+```{r, warning=FALSE}
+set.seed(123)
+
+control.settings<-trainControl(method="cv", number=10, sampling="down")
+
+#Producing various values of mtry
+mtry.vals<-c(ncol(train.data)-1, sqrt(ncol(train.data)-1), 0.5*ncol(train.data)-1)
+mtry.grid<-expand.grid(.mtry=round(mtry.vals))
+
+rf_model<-train(readmission ~., data=train.data, method="rf", metric="Accuracy", tuneGrid=mtry.grid, trControl=control.settings, ntree=200)
+
+confusionMatrix(rf_model)
+
+varImp(rf_model)
+plot(varImp(rf_model))
+```
+
+# Evaluation Metrics with Final Model - Elastic Model
+
+```{r}
+set.seed(123)
+
+#Make predictions in test set
+test.outcome<-predict(rf_model, newdata=test.data)
+
+#Model Prediction Performance
+confusionMatrix(test.outcome, test.data$readmission, positive="1")
+```
+
+
